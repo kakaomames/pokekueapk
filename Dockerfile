@@ -8,7 +8,7 @@ ENV DISPLAY=:1
 ENV VNC_PORT=5901
 # Python/Flask設定
 ENV FLASK_PORT=8080
-ENV PORT=${FLASK_PORT}
+ENV PORT=${FLASK_PORT} 
 # Renderのデフォルトポート
 
 # 1. 必要なパッケージのインストール (Java, Android SDK, GUI, VNC, Python)
@@ -29,9 +29,9 @@ ENV ANDROID_SDK_ROOT="/opt/android-sdk"
 ENV PATH="$PATH:$ANDROID_SDK_ROOT/cmdline-tools/latest/bin:$ANDROID_SDK_ROOT/platform-tools"
 
 # 修正部分: 
-# URLを 'commandlinetools-linux-latest.zip' に変更し、展開後にフォルダをリネームするロジックを採用。
+# URLを 'commandlinetools-linux-13114758_latest.zip' に変更
 RUN mkdir -p $ANDROID_SDK_ROOT/cmdline-tools \
-    && wget -q **https://dl.google.com/android/repository/commandlinetools-linux-latest.zip** -O android-sdk.zip \
+    && wget -q **https://dl.google.com/android/repository/commandlinetools-linux-13114758_latest.zip** -O android-sdk.zip \
     && unzip -q android-sdk.zip -d $ANDROID_SDK_ROOT/cmdline-tools \
     && rm android-sdk.zip \
     # 展開された "cmdline-tools" フォルダを "latest" にリネーム
