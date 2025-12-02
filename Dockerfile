@@ -34,9 +34,8 @@ RUN apt-get update && apt-get install -y \
 RUN mkdir -p $CMDLINE_TOOLS_DIR/lib/external/lint-psi/kotlin-compiler \
     && mkdir -p $CMDLINE_TOOLS_DIR/lib/external/lint-psi/intellij-core
 
-# 2. 軽量なファイル群をGitHubからコピー (cmdline-tools/lib, cmdline-tools/bin, etc.)
-# 注意: コピー元はリポジトリのルートに対する相対パスです。
-# jarファイル（大容量）はリポジトリから除外されている前提。
+# 2. 軽量なファイル群をGitHubからコピー
+# コピー元はリポジトリのルートに対する相対パスです。
 COPY cmdline-tools/ $CMDLINE_TOOLS_DIR/
 
 # 3. 大容量の JAR ファイルを dl リンクから直接ダウンロードして配置
@@ -60,15 +59,14 @@ WORKDIR /app
 COPY requirements.txt requirements.txt
 RUN pip install --no-cache-dir -r requirements.txt gunicorn
 
-# 3. アプリケーションコードのコピー
+# 3. アプリケーションコードと apks の配置
 COPY flask_app.py .
 COPY templates/ templates/
-# apksファイルを配置するディレクトリを準備
-RUN mkdir -p /apks
-RUN wget -p "https://kakaomames.github.io/rei/apk.apks" -O /apks/app.apks
 
-COPY apks/ /apks/
-# APKファイルもリポジトリにある場合は、この行を追加
+# apksファイルを配置するディレクトリを作成し、dl リンクから直接ダウンロードして配置
+RUN mkdir -p /apks
+RUN wget -q "https://drive.usercontent.google.com/download?id=106J88Rc1aF80ODjKgaPuBx-OCFebi1HD" -O /apks/app.apks
+# ------------------------------------------------------------------------------------------------
 
 # 4. 統合されたエントリポイントの作成
 COPY entrypoint.sh /usr/local/bin/entrypoint.sh
