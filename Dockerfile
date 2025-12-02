@@ -8,10 +8,13 @@ ENV DISPLAY=:1
 ENV VNC_PORT=5901
 # Python/Flask設定
 ENV FLASK_PORT=8080
-ENV PORT=${FLASK_PORT} 
-# Renderのデフォルトポート
+ENV PORT=${FLASK_PORT} # Renderのデフォルトポート
+# Android SDK設定
+ENV ANDROID_SDK_ROOT="/opt/android-sdk"
+ENV CMDLINE_TOOLS_DIR="$ANDROID_SDK_ROOT/cmdline-tools/latest"
+ENV PATH="$PATH:$CMDLINE_TOOLS_DIR/bin:$ANDROID_SDK_ROOT/platform-tools"
 
-# 1. 必要なパッケージのインストール (Java, Android SDK, GUI, VNC, Python)
+# 1. 必要なパッケージのインストール
 RUN apt-get update && apt-get install -y \
     wget unzip curl libglu1 libgl1 libsdl1.2debian net-tools \
     openjdk-17-jdk \
@@ -24,18 +27,24 @@ RUN apt-get update && apt-get install -y \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
-# Android SDK Command Line Toolsのインストール
-ENV ANDROID_SDK_ROOT="/opt/android-sdk"
-ENV PATH="$PATH:$ANDROID_SDK_ROOT/cmdline-tools/latest/bin:$ANDROID_SDK_ROOT/platform-tools"
+# Android SDK Command Line Toolsのインストールと配置
+# ------------------------------------------------------------------------------------------------
+# 1. 最終的な配置先ディレクトリを作成
+RUN mkdir -p $CMDLINE_TOOLS_DIR/lib/external/lint-psi/kotlin-compiler \
+    && mkdir -p $CMDLINE_TOOLS_DIR/lib/external/lint-psi/intellij-core
 
-# 修正部分: 
-# URLを 'commandlinetools-linux-13114758_latest.zip' に変更
-RUN mkdir -p $ANDROID_SDK_ROOT/cmdline-tools \
-    && wget -q **https://dl.google.com/android/repository/commandlinetools-linux-13114758_latest.zip** -O android-sdk.zip \
-    && unzip -q android-sdk.zip -d $ANDROID_SDK_ROOT/cmdline-tools \
-    && rm android-sdk.zip \
-    # 展開された "cmdline-tools" フォルダを "latest" にリネーム
-    && mv $ANDROID_SDK_ROOT/cmdline-tools/cmdline-tools $ANDROID_SDK_ROOT/cmdline-tools/latest
+# 2. 軽量なファイル群をGitHubからコピー (cmdline-tools/lib, cmdline-tools/bin, etc.)
+# 注意: コピー元はリポジトリのルートに対する相対パスです。
+# jarファイル（大容量）はリポジトリから除外されている前提。
+COPY cmdline-tools/ $CMDLINE_TOOLS_DIR/
+
+# 3. 大容量の JAR ファイルを dl リンクから直接ダウンロードして配置
+# kotlin-compiler-mvn.jar (51MB)
+RUN wget -q "https://drive.usercontent.google.com/download?id=1rK7CyTrO5UnBiX0WzonjzWxiRoYm508o" -O $CMDLINE_TOOLS_DIR/lib/external/lint-psi/kotlin-compiler/kotlin-compiler-mvn.jar
+
+# intellij-core-mvn.jar (34.7MB)
+RUN wget -q "https://drive.usercontent.google.com/download?id=1PGM-KpNLA6YiuANhfX15oAZ06kUjN7or" -O $CMDLINE_TOOLS_DIR/lib/external/lint-psi/intellij-core/intellij-core-mvn.jar
+# ------------------------------------------------------------------------------------------------
 
 # ライセンスに同意し、必要なコンポーネントをインストール
 # Android 30 (x86_64) をターゲットとする
@@ -55,9 +64,9 @@ COPY flask_app.py .
 COPY templates/ templates/
 # apksファイルを配置するディレクトリを準備
 RUN mkdir -p /apks
+COPY apks/ /apks/  # APKファイルもリポジトリにある場合は、この行を追加
 
 # 4. 統合されたエントリポイントの作成
-# 複数のプロセス (VNCサーバー, エミュレーター, Flask/Gunicorn) を起動・管理するスクリプト
 COPY entrypoint.sh /usr/local/bin/entrypoint.sh
 RUN chmod +x /usr/local/bin/entrypoint.sh
 
