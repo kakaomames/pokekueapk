@@ -8,20 +8,18 @@ ENV DISPLAY=:1
 ENV VNC_PORT=5901
 # Python/Flask設定
 ENV FLASK_PORT=8080
-ENV PORT=${FLASK_PORT} 
-# Renderのデフォルトポート
+ENV PORT=${FLASK_PORT} # Renderのデフォルトポート
 
 # 1. 必要なパッケージのインストール (Java, Android SDK, GUI, VNC, Python)
-# 修正点: libsdl1.2dbio -> libsdl1.2debian, qemu-kvm-common -> qemu-utils
 RUN apt-get update && apt-get install -y \
-    wget unzip curl libglu1 libgl1 **libsdl1.2debian** net-tools \
+    wget unzip curl libglu1 libgl1 libsdl1.2debian net-tools \
     openjdk-17-jdk \
     # VNCサーバーとGUI環境
     xfce4 xfce4-goodies tightvncserver \
     # Pythonと依存関係
     python3 python3-pip \
-    # ADBとエミュレータの実行に必要 (ソフトウェアエミュレーション用)
-    **qemu-utils** \
+    # ADBとエミュレータの実行に必要
+    qemu-utils \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
@@ -29,16 +27,14 @@ RUN apt-get update && apt-get install -y \
 ENV ANDROID_SDK_ROOT="/opt/android-sdk"
 ENV PATH="$PATH:$ANDROID_SDK_ROOT/cmdline-tools/latest/bin:$ANDROID_SDK_ROOT/platform-tools"
 
-# 修正点: mv コマンドでワイルドカード (*) を使用し、ZIPの中身を正しく配置
-RUN mkdir -p $ANDROID_SDK_ROOT/cmdline-tools/latest \
-    && wget -q https://dl.google.com/android/repository/commandlinetools-linux-10406996.zip -O android-sdk.zip \
-    # cmdline-tools フォルダの中に展開されるため、親ディレクトリに展開
+# 修正部分: 
+# URLを 'commandlinetools-linux-latest.zip' に変更し、展開後にフォルダをリネームするロジックを採用。
+RUN mkdir -p $ANDROID_SDK_ROOT/cmdline-tools \
+    && wget -q **https://dl.google.com/android/repository/commandlinetools-linux-latest.zip** -O android-sdk.zip \
     && unzip -q android-sdk.zip -d $ANDROID_SDK_ROOT/cmdline-tools \
     && rm android-sdk.zip \
-    # 展開された中身（/cmdline-tools/cmdline-tools/の中身）を /cmdline-tools/latest に移動
-    && mv $ANDROID_SDK_ROOT/cmdline-tools/cmdline-tools/* $ANDROID_SDK_ROOT/cmdline-tools/latest/ \
-    # 不要になった中間ディレクトリを削除
-    && rm -rf $ANDROID_SDK_ROOT/cmdline-tools/cmdline-tools
+    # 展開された "cmdline-tools" フォルダを "latest" にリネーム
+    && mv $ANDROID_SDK_ROOT/cmdline-tools/cmdline-tools $ANDROID_SDK_ROOT/cmdline-tools/latest
 
 # ライセンスに同意し、必要なコンポーネントをインストール
 # Android 30 (x86_64) をターゲットとする
