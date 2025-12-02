@@ -1,27 +1,63 @@
-# ベースイメージ: Pythonを使用
-FROM python:3.10-slim
+# ベースイメージ: Ubuntu (Android SDKとGUI環境が必要なため)
+FROM ubuntu:22.04
 
-# 作業ディレクトリの設定
+# 環境変数
+ENV DEBIAN_FRONTEND=noninteractive
+# VNC設定
+ENV DISPLAY=:1
+ENV VNC_PORT=5901
+# Python/Flask設定
+ENV FLASK_PORT=8080
+ENV PORT=${FLASK_PORT} # Renderのデフォルトポート
+
+# 1. 必要なパッケージのインストール (Java, Android SDK, GUI, VNC, Python)
+RUN apt-get update && apt-get install -y \
+    wget unzip curl libglu1 libgl1 libsdl1.2dbio net-tools \
+    openjdk-17-jdk \
+    # VNCサーバーとGUI環境
+    xfce4 xfce4-goodies tightvncserver \
+    # Pythonと依存関係
+    python3 python3-pip \
+    # ADBとエミュレータの実行に必要
+    qemu-kvm-common \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
+
+# Android SDK Command Line Toolsのインストール
+ENV ANDROID_SDK_ROOT="/opt/android-sdk"
+ENV PATH="$PATH:$ANDROID_SDK_ROOT/cmdline-tools/latest/bin:$ANDROID_SDK_ROOT/platform-tools"
+
+RUN mkdir -p $ANDROID_SDK_ROOT/cmdline-tools \
+    && wget -q https://dl.google.com/android/repository/commandlinetools-linux-10406996.zip -O android-sdk.zip \
+    && unzip -q android-sdk.zip -d $ANDROID_SDK_ROOT/cmdline-tools \
+    && rm android-sdk.zip \
+    && mv $ANDROID_SDK_ROOT/cmdline-tools/cmdline-tools $ANDROID_SDK_ROOT/cmdline-tools/latest
+
+# ライセンスに同意し、必要なコンポーネントをインストール
+# Android 30 (x86_64) をターゲットとする
+RUN yes | sdkmanager --licenses \
+    && sdkmanager "platform-tools" "emulator" "system-images;android-30;google_apis;x86_64"
+
+# AVDの作成 (Android Virtual Device)
+RUN echo "no" | avdmanager create avd -n avd_ipad -k "system-images;android-30;google_apis;x86_64" -d "pixel"
+
+# 2. Python依存関係のインストール (Flask, Gunicorn, WebSocketプロキシ)
 WORKDIR /app
-
-# 依存関係のコピーとインストール
-# Renderでの標準的なWeb Service起動には gunicorn を使用します
 COPY requirements.txt requirements.txt
 RUN pip install --no-cache-dir -r requirements.txt gunicorn
 
-# アプリケーションコードのコピー
+# 3. アプリケーションコードのコピー
 COPY flask_app.py .
 COPY templates/ templates/
+# apksファイルを配置するディレクトリを準備 (デプロイ時に apks ファイルを配置する想定)
+RUN mkdir -p /apks
 
-# Renderは環境変数 PORT で指定されたポートを使用します
-ARG PORT=8080
-ENV PORT=${PORT}
+# 4. 統合されたエントリポイントの作成
+# 複数のプロセス (VNCサーバー, エミュレーター, Flask/Gunicorn) を起動・管理するスクリプト
+COPY entrypoint.sh /usr/local/bin/entrypoint.sh
+RUN chmod +x /usr/local/bin/entrypoint.sh
 
-# ポートの公開
-EXPOSE ${PORT}
+# VNCポートとFlaskポートを公開
+EXPOSE ${VNC_PORT} ${FLASK_PORT}
 
-# Gunicornを使ってFlaskアプリを起動
-# Web Serviceのエントリポイントとして使用
-# --bind 0.0.0.0:${PORT} で、外部からのアクセスを許可
-# flask_app:app は、'flask_app.py' の 'app' オブジェクトを指します
-CMD ["gunicorn", "--bind", "0.0.0.0:8080", "flask_app:app"]
+ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
