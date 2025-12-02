@@ -8,10 +8,10 @@ ENV DISPLAY=:1
 ENV VNC_PORT=5901
 # Python/Flask設定
 ENV FLASK_PORT=8080
-ENV PORT=${FLASK_PORT}
-# Renderのデフォルトポート
+ENV PORT=${FLASK_PORT} # Renderのデフォルトポート
 
 # 1. 必要なパッケージのインストール (Java, Android SDK, GUI, VNC, Python)
+# 修正点: libsdl1.2dbio -> libsdl1.2debian, qemu-kvm-common -> qemu-utils
 RUN apt-get update && apt-get install -y \
     wget unzip curl libglu1 libgl1 **libsdl1.2debian** net-tools \
     openjdk-17-jdk \
@@ -19,7 +19,7 @@ RUN apt-get update && apt-get install -y \
     xfce4 xfce4-goodies tightvncserver \
     # Pythonと依存関係
     python3 python3-pip \
-    # ADBとエミュレータの実行に必要 (ソフトウェアエミュレーションに必要な最小限のqemuパッケージ)
+    # ADBとエミュレータの実行に必要 (ソフトウェアエミュレーション用)
     **qemu-utils** \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
@@ -28,11 +28,16 @@ RUN apt-get update && apt-get install -y \
 ENV ANDROID_SDK_ROOT="/opt/android-sdk"
 ENV PATH="$PATH:$ANDROID_SDK_ROOT/cmdline-tools/latest/bin:$ANDROID_SDK_ROOT/platform-tools"
 
-RUN mkdir -p $ANDROID_SDK_ROOT/cmdline-tools \
+# 修正点: mv コマンドでワイルドカード (*) を使用し、ZIPの中身を正しく配置
+RUN mkdir -p $ANDROID_SDK_ROOT/cmdline-tools/latest \
     && wget -q https://dl.google.com/android/repository/commandlinetools-linux-10406996.zip -O android-sdk.zip \
+    # cmdline-tools フォルダの中に展開されるため、親ディレクトリに展開
     && unzip -q android-sdk.zip -d $ANDROID_SDK_ROOT/cmdline-tools \
     && rm android-sdk.zip \
-    && mv $ANDROID_SDK_ROOT/cmdline-tools/cmdline-tools $ANDROID_SDK_ROOT/cmdline-tools/latest
+    # 展開された中身（/cmdline-tools/cmdline-tools/の中身）を /cmdline-tools/latest に移動
+    && mv $ANDROID_SDK_ROOT/cmdline-tools/cmdline-tools/* $ANDROID_SDK_ROOT/cmdline-tools/latest/ \
+    # 不要になった中間ディレクトリを削除
+    && rm -rf $ANDROID_SDK_ROOT/cmdline-tools/cmdline-tools
 
 # ライセンスに同意し、必要なコンポーネントをインストール
 # Android 30 (x86_64) をターゲットとする
@@ -54,6 +59,7 @@ COPY templates/ templates/
 RUN mkdir -p /apks
 
 # 4. 統合されたエントリポイントの作成
+# 複数のプロセス (VNCサーバー, エミュレーター, Flask/Gunicorn) を起動・管理するスクリプト
 COPY entrypoint.sh /usr/local/bin/entrypoint.sh
 RUN chmod +x /usr/local/bin/entrypoint.sh
 
