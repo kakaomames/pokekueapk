@@ -8,7 +8,8 @@ ENV DISPLAY=:1
 ENV VNC_PORT=5901
 # Python/Flask設定
 ENV FLASK_PORT=8080
-ENV PORT=${FLASK_PORT} # Renderのデフォルトポート
+ENV PORT=${FLASK_PORT} 
+# Renderのデフォルトポート
 
 # 1. 必要なパッケージのインストール (Java, Android SDK, GUI, VNC, Python)
 RUN apt-get update && apt-get install -y \
