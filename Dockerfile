@@ -8,19 +8,18 @@ ENV DISPLAY=:1
 ENV VNC_PORT=5901
 # Python/Flask設定
 ENV FLASK_PORT=8080
-ENV PORT=${FLASK_PORT} 
-# Renderのデフォルトポート
+ENV PORT=${FLASK_PORT} # Renderのデフォルトポート
 
 # 1. 必要なパッケージのインストール (Java, Android SDK, GUI, VNC, Python)
 RUN apt-get update && apt-get install -y \
-    wget unzip curl libglu1 libgl1 libsdl1.2dbio net-tools \
+    wget unzip curl libglu1 libgl1 **libsdl1.2debian** net-tools \
     openjdk-17-jdk \
     # VNCサーバーとGUI環境
     xfce4 xfce4-goodies tightvncserver \
     # Pythonと依存関係
     python3 python3-pip \
-    # ADBとエミュレータの実行に必要
-    qemu-kvm-common \
+    # ADBとエミュレータの実行に必要 (ソフトウェアエミュレーションに必要な最小限のqemuパッケージ)
+    **qemu-utils** \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
@@ -50,11 +49,10 @@ RUN pip install --no-cache-dir -r requirements.txt gunicorn
 # 3. アプリケーションコードのコピー
 COPY flask_app.py .
 COPY templates/ templates/
-# apksファイルを配置するディレクトリを準備 (デプロイ時に apks ファイルを配置する想定)
+# apksファイルを配置するディレクトリを準備
 RUN mkdir -p /apks
 
 # 4. 統合されたエントリポイントの作成
-# 複数のプロセス (VNCサーバー, エミュレーター, Flask/Gunicorn) を起動・管理するスクリプト
 COPY entrypoint.sh /usr/local/bin/entrypoint.sh
 RUN chmod +x /usr/local/bin/entrypoint.sh
 
