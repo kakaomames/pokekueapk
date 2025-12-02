@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Gemini programming隊によるAndroid on Webエミュレータ。Docker, Flask, Renderを使用。">
+    <meta name="keywords" content="Android, Emulator, Docker, Flask, VNC, WebSockets, Render, Gemini, apks, カカオマメ">
+    <meta name="author" content="カカオマメ">
+    <title>Gemini隊 Android Emulator (Render)</title>
+    <link rel="icon" type="image/png" href="https://kakaomames.github.io/rei/logo.png">
+    <style>
+        body { margin: 0; overflow: hidden; background-color: #222; color: white; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; font-family: sans-serif; }
+        #vnc_screen { width: 100%; height: 100%; }
+        /* noVNCの要素をフルスクリーンにするための調整 */
+        .noVNC_viewport { width: 100vw !important; height: 100vh !important; }
+        .VNC_canvas { width: 100% !important; height: 100% !important; }
+        .loading-text { font-size: 1.5rem; color: #4CAF50; }
+    </style>
+</head>
+<body>
+    <div id="vnc_screen">
+        <canvas id="noVNC_canvas" style="display: none;"></canvas>
+        <div id="loading" class="loading-text">
+            🚀 Androidエミュレーターを起動中... (約30秒)
+        </div>
+    </div>
+    
+    <script src="https://cdn.jsdelivr.net/npm/@novnc/novnc@1.3.0/core/util.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@novnc/novnc@1.3.0/core/webutil.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@novnc/novnc@1.3.0/core/rfb.js"></script>
+
+    <script>
+        const host = window.location.hostname;
+        // Flaskから渡されたパスを使用
+        const path = "{{ path }}"; 
+        
+        // Renderでは、WebSocket接続は標準ポート80で確立する必要がありますが、
+        // RenderのWeb Serviceは8080を使用します。
+        // Renderが自動的にポート変換してくれることを期待し、相対パスで接続します。
+        
+        // プロキシへの接続URLを構築: ws://<Renderホスト>/websockify
+        let url = 'ws://' + host + '/' + path;
+
+        // RenderがHTTPSを使用している場合
+        if (window.location.protocol === "https:") {
+            url = 'wss://' + host + '/' + path;
+        }
+
+        const rfb = new RFB(
+            document.getElementById('noVNC_canvas'), 
+            url, 
+            {
+                wsProtocols: ['binary'], // VNCプロトコルはバイナリ通信
+            }
+        );
+
+        rfb.addEventListener('connect', () => {
+            console.log("VNC connected!");
+            document.getElementById('loading').style.display = 'none';
+            document.getElementById('noVNC_canvas').style.display = 'block';
+        });
+
+        rfb.addEventListener('disconnect', (e) => {
+            console.log("VNC disconnected: " + e.detail.reason);
+            document.getElementById('loading').innerHTML = `🚨 接続が切れました: ${e.detail.reason}<br>ページをリロードしてください。`;
+            document.getElementById('loading').style.display = 'block';
+            document.getElementById('noVNC_canvas').style.display = 'none';
+        });
+        
+        // 接続を開始
+        rfb.connect();
+
+    </script>
+</body>
+</html>
