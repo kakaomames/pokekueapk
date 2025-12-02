@@ -8,7 +8,8 @@ ENV DISPLAY=:1
 ENV VNC_PORT=5901
 # Python/Flask設定
 ENV FLASK_PORT=8080
-ENV PORT=${FLASK_PORT} # Renderのデフォルトポート
+ENV PORT=${FLASK_PORT} 
+# Renderのデフォルトポート
 # Android SDK設定
 ENV ANDROID_SDK_ROOT="/opt/android-sdk"
 ENV CMDLINE_TOOLS_DIR="$ANDROID_SDK_ROOT/cmdline-tools/latest"
