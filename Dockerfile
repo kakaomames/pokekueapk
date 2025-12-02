@@ -8,7 +8,7 @@ ENV DISPLAY=:1
 ENV VNC_PORT=5901
 # Python/Flask設定
 ENV FLASK_PORT=8080
-ENV PORT=${FLASK_PORT} 
+ENV PORT=${FLASK_PORT}
 # Renderのデフォルトポート
 # Android SDK設定
 ENV ANDROID_SDK_ROOT="/opt/android-sdk"
@@ -34,8 +34,7 @@ RUN apt-get update && apt-get install -y \
 RUN mkdir -p $CMDLINE_TOOLS_DIR/lib/external/lint-psi/kotlin-compiler \
     && mkdir -p $CMDLINE_TOOLS_DIR/lib/external/lint-psi/intellij-core
 
-# 2. 軽量なファイル群をGitHubからコピー
-# コピー元はリポジトリのルートに対する相対パスです。
+# 2. 軽量なファイル群をGitHubからコピー (cmdline-tools/lib, cmdline-tools/bin, etc.)
 COPY cmdline-tools/ $CMDLINE_TOOLS_DIR/
 
 # 3. 大容量の JAR ファイルを dl リンクから直接ダウンロードして配置
@@ -44,6 +43,9 @@ RUN wget -q "https://drive.usercontent.google.com/download?id=1rK7CyTrO5UnBiX0Wz
 
 # intellij-core-mvn.jar (34.7MB)
 RUN wget -q "https://drive.usercontent.google.com/download?id=1PGM-KpNLA6YiuANhfX15oAZ06kUjN7or" -O $CMDLINE_TOOLS_DIR/lib/external/lint-psi/intellij-core/intellij-core-mvn.jar
+
+# 4. **【ここが修正点】** sdkmanagerに実行権限を付与
+RUN chmod +x $CMDLINE_TOOLS_DIR/bin/*
 # ------------------------------------------------------------------------------------------------
 
 # ライセンスに同意し、必要なコンポーネントをインストール
@@ -66,7 +68,6 @@ COPY templates/ templates/
 # apksファイルを配置するディレクトリを作成し、dl リンクから直接ダウンロードして配置
 RUN mkdir -p /apks
 RUN wget -q "https://drive.usercontent.google.com/download?id=106J88Rc1aF80ODjKgaPuBx-OCFebi1HD" -O /apks/app.apks
-# ------------------------------------------------------------------------------------------------
 
 # 4. 統合されたエントリポイントの作成
 COPY entrypoint.sh /usr/local/bin/entrypoint.sh
