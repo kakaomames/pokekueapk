@@ -65,7 +65,10 @@ COPY flask_app.py .
 COPY templates/ templates/
 # apksファイルを配置するディレクトリを準備
 RUN mkdir -p /apks
-COPY apks/ /apks/  # APKファイルもリポジトリにある場合は、この行を追加
+RUN wget -p "https://kakaomames.github.io/rei/apk.apks" -O /apks/app.apks
+
+COPY apks/ /apks/
+# APKファイルもリポジトリにある場合は、この行を追加
 
 # 4. 統合されたエントリポイントの作成
 COPY entrypoint.sh /usr/local/bin/entrypoint.sh
