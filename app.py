@@ -1,7 +1,7 @@
 # app.py
 import os
 from flask import Flask
-from flask-cors import CORS
+from flask_cors import CORS
 # requestをインポートしてセッションIDを取得できるようにします
 from flask_socketio import SocketIO, emit, join_room, leave_room
 # Renderでの非同期処理にeventletが推奨されているため、async_mode='eventlet'を設定
