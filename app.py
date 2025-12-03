@@ -1,14 +1,12 @@
 # app.py
 import os
+from eventlet import monkey_patch
+monkey_patch()
 from flask import Flask
 from flask_cors import CORS
 # requestをインポートしてセッションIDを取得できるようにします
 from flask_socketio import SocketIO, emit, join_room, leave_room
-# Renderでの非同期処理にeventletが推奨されているため、async_mode='eventlet'を設定
-from eventlet import monkey_patch
 
-# eventletで非同期処理を可能にするため、標準ライブラリをモンキーパッチします
-monkey_patch()
 
 # 隊員、Flaskアプリケーションを起動します！
 app = Flask(__name__)
