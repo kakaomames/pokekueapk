@@ -2,3 +2,7 @@ Flask
 docker
 gevent
 gevent-websocket
+python-socketio
+Flask-SocketIO
+eventlet
+gunicorn
