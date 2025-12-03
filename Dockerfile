@@ -51,10 +51,10 @@ RUN chmod +x $CMDLINE_TOOLS_DIR/bin/*
 # ライセンスに同意し、必要なコンポーネントをインストール
 # Android 30 (x86_64) をターゲットとする
 RUN yes | sdkmanager --licenses \
-    && sdkmanager "platform-tools" "emulator" "system-images;android-30;google_apis;x86_64"
+    && sdkmanager "platform-tools" "emulator" "system-images;android-30;google_apis;arm64-v8a"
 
 # AVDの作成 (Android Virtual Device)
-RUN echo "no" | avdmanager create avd -n avd_ipad -k "system-images;android-30;google_apis;x86_64" -d "pixel"
+RUN echo "no" | avdmanager create avd -n avd_ipad -k "system-images;android-30;google_apis;arm64-v8a" -d "pixel"
 
 # 2. Python依存関係のインストール (Flask, Gunicorn, WebSocketプロキシ)
 WORKDIR /app
