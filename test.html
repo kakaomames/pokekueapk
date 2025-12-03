@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Gemini programming隊 - リアルタイム通信 WebSocketクライアント">
+    <meta name="keywords" content="websocket, flask, socketio, real-time, programming">
+    <meta property="og:title" content="WebSocket クライアント テスト">
+    <meta property="og:image" content="https://kakaomames.github.io/rei/logo.png">
+    <meta property="og:url" content="https://kakaomame.github.io/">
+    <title>WebSocket 接続テスト - Gemini隊</title>
+</head>
+<body>
+    <h1>隊員WebSocket接続テスト</h1>
+    <p>サーバーURL: <strong id="server-url-display"></strong></p>
+    <hr>
+    
+    <h2>接続ステータス: <span id="status" style="color: red;">切断中</span></h2>
+    <p id="retry-info" style="font-size: 0.9em;"></p>
+    
+    <hr>
+    
+    <h2>メッセージ送信</h2>
+    <input type="text" id="message-input" placeholder="メッセージを入力">
+    <button onclick="sendMessage()">送信</button>
+    
+    <hr>
+    
+    <h2>ログ</h2>
+    <ul id="messages"></ul>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.4/socket.io.min.js"></script>
+    
+    <script>
+        // 設定値
+        const RENDER_WS_URL = 'https://pokekueapk.onrender.com'; // ⚠️ ここに実際のRender URLを入れてください！
+        const MAX_RETRY_COUNT = 10;
+        const BASE_RETRY_DELAY_MS = 2000; // 2秒
+
+        let socket = null;
+        let retryCount = 0;
+        
+        // 画面にサーバーURLを表示
+        document.getElementById('server-url-display').textContent = RENDER_WS_URL;
+
+        // 接続処理を開始する関数
+        function connectSocket() {
+            // ステータス表示を更新
+            updateStatus('接続中...', 'orange');
+            
+            // 接続試行回数と次の再接続までの時間を表示
+            const delay = calculateNextDelay();
+            document.getElementById('retry-info').textContent = `試行回数: ${retryCount} / ${MAX_RETRY_COUNT}。${retryCount > 0 ? ` 次の接続まで ${delay / 1000}秒...` : ''}`;
+
+
+            // 接続
+            // サーバー側が HTTPS で動いているため、クライアントも 'https' を指定
+            socket = io(RENDER_WS_URL, {
+                transports: ['websocket', 'polling'], // トランスポートを明示的に指定
+                reconnection: false // 自動再接続は自前で制御
+            });
+
+            // 接続成功時
+            socket.on('connect', () => {
+                console.log('a:WebSocket接続に成功しました！');
+                updateStatus('接続済み', 'green');
+                logMessage('🟢 サーバーへの接続に成功しました！', 'system');
+                retryCount = 0; // 成功したのでリトライ回数をリセット
+                document.getElementById('retry-info').textContent = '';
+            });
+
+            // 切断時
+            socket.on('disconnect', (reason) => {
+                console.log(`a:WebSocket接続が切断されました。理由: ${reason}`);
+                logMessage(`🔴 接続が切断されました。理由: ${reason}`, 'system');
+                updateStatus('切断中 (再接続を試みます)', 'red');
+                
+                // 再接続ロジックを呼び出す
+                attemptReconnect();
+            });
+            
+            // サーバーから「server_response」イベントを受信時
+            socket.on('server_response', (data) => {
+                console.log('a:サーバーからメッセージを受信:', data);
+                logMessage(`[サーバー] ${data.data}`, 'server');
+            });
+            
+            // 接続エラー時（ハンドシェイク失敗など）
+            socket.on('connect_error', (error) => {
+                console.error('a:接続エラーが発生しました:', error);
+                logMessage(`❌ 接続エラー: ${error.message}`, 'system');
+                // エラーが発生しても、disconnectイベントが続いて発火するため、そちらで再接続処理を行う
+            });
+        }
+        
+        // 指数関数的バックオフによる待ち時間の計算
+        function calculateNextDelay() {
+            // delay = 2^retryCount * BASE_RETRY_DELAY_MS。ただし、最大遅延時間を設定
+            const delay = Math.min(BASE_RETRY_DELAY_MS * Math.pow(2, retryCount), 30000); // 最大30秒
+            return delay;
+        }
+
+        // 再接続を試みる関数（指数関数的バックオフ付き）
+        function attemptReconnect() {
+            if (retryCount >= MAX_RETRY_COUNT) {
+                updateStatus('再接続失敗 (上限に達しました)', 'darkred');
+                logMessage('🛑 再接続試行回数が上限に達しました。', 'system');
+                return;
+            }
+
+            const delay = calculateNextDelay();
+            retryCount++;
+            
+            logMessage(`... ${delay / 1000}秒後に再接続 (${retryCount}/${MAX_RETRY_COUNT})を試みます`, 'system');
+
+            setTimeout(() => {
+                connectSocket();
+            }, delay);
+        }
+
+        // メッセージを送信する関数
+        function sendMessage() {
+            const input = document.getElementById('message-input');
+            const message = input.value;
+            
+            if (socket && socket.connected) {
+                // Flaskサーバーのハンドラ名に合わせて 'client_message' イベントを発火させます
+                socket.emit('client_message', { data: message });
+                logMessage(`[クライアント送信] ${message}`, 'client');
+                input.value = '';
+            } else {
+                logMessage('⚠️ 接続されていません。メッセージを送信できませんでした。', 'system');
+            }
+        }
+        
+        // ステータスを更新するヘルパー関数
+        function updateStatus(text, color) {
+            const statusElement = document.getElementById('status');
+            statusElement.textContent = text;
+            statusElement.style.color = color;
+        }
+
+        // ログにメッセージを追加するヘルパー関数
+        function logMessage(message, type) {
+            const messages = document.getElementById('messages');
+            const listItem = document.createElement('li');
+            listItem.textContent = message;
+            
+            // ログタイプに応じて色を付ける（視認性向上）
+            if (type === 'system') listItem.style.color = '#1f77b4'; // 青
+            if (type === 'server') listItem.style.color = '#2ca02c'; // 緑
+            if (type === 'client') listItem.style.color = '#ff7f0e'; // オレンジ
+            
+            messages.appendChild(listItem);
+            messages.scrollTop = messages.scrollHeight; // スクロールを一番下へ
+        }
+
+        // ページロード時に接続開始
+        connectSocket();
+    </script>
+</body>
+</html>
